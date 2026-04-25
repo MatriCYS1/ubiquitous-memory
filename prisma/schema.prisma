@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  username  String   @unique
+  password  String
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  role      Role @relation(fields: [roleId], references: [id])
+  roleId    String
+  messages  Message[]
+  commands  Command[]
+
+  @@map("users")
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  permissions String[] // Array of permission strings
+  color       String?  // Hex color for UI
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  users User[]
+
+  @@map("roles")
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  content   String
+  type      MessageType @default(TEXT)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  author   User   @relation(fields: [authorId], references: [id])
+  authorId String
+  room     Room   @relation(fields: [roomId], references: [id])
+  roomId   String
+
+  @@map("messages")
+}
+
+model Room {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  isPrivate   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  messages Message[]
+  members  RoomMember[]
+
+  @@map("rooms")
+}
+
+model RoomMember {
+  id     String @id @default(cuid())
+  userId String
+  roomId String
+  role   String @default("member") // member, admin, owner
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roomId])
+  @@map("room_members")
+}
+
+model Command {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String
+  usage       String   // e.g. "/kick <user>"
+  permission  String   // Required permission to use
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  createdBy User   @relation(fields: [createdById], references: [id])
+  createdById String
+
+  @@map("commands")
+}
+
+enum MessageType {
+  TEXT
+  SYSTEM
+  COMMAND
+  EMBED
+}
